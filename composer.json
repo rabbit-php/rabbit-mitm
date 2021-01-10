@@ -1,0 +1,31 @@
+{
+  "name": "rabbit/mitm",
+  "description": "rabbit mitm",
+  "type": "library",
+  "require": {
+    "php": ">=7.4.0",
+    "ext-swoole": ">=4.5.0",
+    "swow/swow": "*",
+    "rabbit/base": "dev-master",
+    "rabbit/server": "dev-master"
+  },
+  "require-dev": {
+    "swoole/ide-helper": "@dev",
+    "phpunit/phpunit": "*"
+  },
+  "suggest": {
+    "ext-inotify": "Use Inotify to reload"
+  },
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "albert",
+      "email": "63851587@qq.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Rabbit\\Mitm\\": "src/"
+    }
+  }
+}
