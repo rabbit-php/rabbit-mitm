@@ -65,8 +65,9 @@ class Agent
                     stream_set_blocking($client, true);
                     $send->rewind();
                     while (!$send->eof()) {
-                        $len = $socket->sendAll($send->toString());
-                        $send->seek($len);
+                        if (false !== $len = $socket->sendAll($send->toString())) {
+                            $send->seek($len);
+                        }
                     }
                 } elseif ($contentLength > 0) {
                     //读取请求返回的主体信息
