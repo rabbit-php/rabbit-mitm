@@ -40,16 +40,18 @@ class ProxyServer extends CoServer
                     try {
                         $needRequest && $request = new \http\Message($data);
                     } catch (Throwable $e) {
-                        App::error($e->getMessage());
+                        App::error($e->getMessage() . '. remove body');
+                        $request = new \http\Message(current(explode("\r\n\r\n", $data)));
                     }
 
                     if ($status === 1) {
                         $ssl = $request->getRequestMethod() === 'CONNECT';
-                        $url = parse_url($request->getRequestUrl());
+                        $urlStr = $request->getRequestUrl();
+                        $url = parse_url($urlStr);
                         $host = $url['host'];
                         $port = $url['port'] ?? ($ssl ? 443 : 80);
                         $status = 2;
-                        App::info("MITM to $host:$port");
+                        App::info("MITM to " . $urlStr);
                         if ($ssl) {
                             $remote = stream_socket_client("ssl://$host:$port", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, stream_context_create([
                                 'ssl' => [
@@ -107,6 +109,7 @@ class ProxyServer extends CoServer
                 }
             } catch (Throwable $e) {
                 App::error($e->getMessage());
+                echo $data . PHP_EOL;
             } finally {
                 $conn->close();
             }
