@@ -40,8 +40,9 @@ class ProxyServer extends CoServer
                     try {
                         $needRequest && $request = new \http\Message($data);
                     } catch (Throwable $e) {
-                        App::error($e->getMessage() . '. remove body');
-                        $request = new \http\Message(current(explode("\r\n\r\n", $data)));
+                        App::error($e->getMessage());
+                        isset($remote) && fclose($remote);
+                        break;
                     }
 
                     if ($status === 1) {
@@ -51,17 +52,28 @@ class ProxyServer extends CoServer
                         $host = $url['host'];
                         $port = $url['port'] ?? ($ssl ? 443 : 80);
                         $status = 2;
-                        App::info("MITM to " . $urlStr);
+                        App::debug("MITM to " . $urlStr);
                         if ($ssl) {
-                            $remote = stream_socket_client("ssl://$host:$port", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, stream_context_create([
-                                'ssl' => [
-                                    'capture_peer_cert' => true,
-                                    'capture_peer_cert_chain' => true,
-                                ],
-                            ]));
+                            $retry = 3;
+                            while (true) {
+                                if (false !== $remote = stream_socket_client("ssl://$host:$port", $errno, $errstr, 30, STREAM_CLIENT_CONNECT, stream_context_create([
+                                    'ssl' => [
+                                        'capture_peer_cert' => true,
+                                        'capture_peer_cert_chain' => true,
+                                    ],
+                                ]))) {
+                                    break;
+                                }
+                                if ($retry-- === 0) {
+                                    App::error("Connect to $host:$port failed!");
+                                    break 2;
+                                }
+                            }
+
                             $x509 = openssl_x509_parse(stream_context_get_params($remote)['options']['ssl']['peer_certificate'], true);
                             if ($x509 === false) {
-                                return;
+                                fclose($remote);
+                                break;
                             }
                             $subject = $x509['subject'];
                             $cn = 'rabbit-' . $subject['CN'];
@@ -109,7 +121,6 @@ class ProxyServer extends CoServer
                 }
             } catch (Throwable $e) {
                 App::error($e->getMessage());
-                echo $data . PHP_EOL;
             } finally {
                 $conn->close();
             }
