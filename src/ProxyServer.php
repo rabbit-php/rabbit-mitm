@@ -18,6 +18,18 @@ class ProxyServer extends CoServer
 
     protected ?string $filePath = null;
 
+    protected ?string $savePath = null;
+
+    protected ?string $pKey = null;
+    protected ?string $pCert = null;
+
+    public function __construct(array $setting = [], array $coSetting = [], string $pKeyPath = null, string $pCertPath = null)
+    {
+        parent::__construct($setting, $coSetting);
+        $this->pkey = file_get_contents($pKeyPath ?? App::getAlias('@root/server_key.pem'));
+        $this->pCert = file_get_contents($pCertPath ?? App::getAlias('@root/server_cert.pem'));
+    }
+
     protected function createServer()
     {
         return new Server($this->host, $this->port, $this->ssl, true);
@@ -77,10 +89,7 @@ class ProxyServer extends CoServer
                             }
                             $subject = $x509['subject'];
                             $cn = 'rabbit-' . $subject['CN'];
-                            if (!file_exists("{$this->filePath}/$cn.crt") || !file_exists("{$this->filePath}/$cn.key")) {
-                                static $pkey, $pCert;
-                                $pkey = file_get_contents(App::getAlias('@root/server_key.pem'));
-                                $pCert = file_get_contents(App::getAlias('@root/server_cert.pem'));
+                            if (!file_exists("{$this->filePath}/{$cn}.crt") || !file_exists("{$this->filePath}/{$cn}.key")) {
                                 $sna = explode(', ', str_replace('DNS:', '', $x509['extensions']['subjectAltName']));
                                 $this->writeSSLCnf("{$this->filePath}/$cn.cnf", $sna);
                                 $config = [
@@ -94,11 +103,11 @@ class ProxyServer extends CoServer
                                     "organizationName" =>  $subject['O'] ?? 'LaoYao',   //注册人姓名     
                                     "commonName" => current(explode(':', $request->getHeaders()['Host'])) //公共名称
                                 );
-                                $csr = openssl_csr_new($dn, $pkey, $config);
-                                $sscert = openssl_csr_sign($csr, $pCert, $pkey, 3 * 365, $config, intval(microtime(true) * 1000));
-                                openssl_pkey_export_to_file($pkey, "{$this->filePath}/$cn.key", null, $config);
+                                $csr = openssl_csr_new($dn, $this->pkey, $config);
+                                $sscert = openssl_csr_sign($csr, $this->pCert, $this->pkey, 3 * 365, $config, intval(microtime(true) * 1000));
+                                openssl_pkey_export_to_file($this->pkey, "{$this->filePath}/$cn.key", null, $config);
                                 openssl_x509_export_to_file($sscert, "{$this->filePath}/$cn.crt");
-                                @unlink("{$this->filePath}/$cn.cnf");
+                                @unlink("{$this->filePath}/{$cn}.cnf");
                             }
                             $socket->setProtocol([
                                 'open_ssl' => true,
@@ -117,6 +126,14 @@ class ProxyServer extends CoServer
                     $response = Agent::getResponse($remote, $socket);
                     if (array_key_exists($host, $this->handlers) && $response !== null) {
                         rgo(fn () => $this->handlers[$host]($request, $response));
+                    } elseif (getDI('debug') && $response && !empty($body = $response->getBody()->toString())) {
+                        if ($this->savePath) {
+                            FileHelper::createDirectory($this->savePath, 777);
+                            $fileName = str_replace('/', '-', ltrim(parse_url($request->getRequestUrl(), PHP_URL_PATH), '/')) . intval(microtime(true) * 1000);
+                            file_put_contents($this->filePath . "/$fileName.log", $body);
+                        } else {
+                            fwrite(STDOUT, $body);
+                        }
                     }
                 }
             } catch (Throwable $e) {
