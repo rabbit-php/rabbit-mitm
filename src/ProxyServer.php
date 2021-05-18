@@ -15,13 +15,11 @@ class ProxyServer extends CoServer
 {
 
     protected array $handlers = [];
-
     protected ?string $filePath = null;
-
     protected ?string $savePath = null;
-
     protected ?string $pKey = null;
     protected ?string $pCert = null;
+    protected ?array $convert = ['UTF-8', null];
 
     public function __construct(array $setting = [], array $coSetting = [], string $pKeyPath = null, string $pCertPath = null)
     {
@@ -132,7 +130,7 @@ class ProxyServer extends CoServer
                             $fileName = str_replace('/', '-', ltrim(parse_url($request->getRequestUrl(), PHP_URL_PATH), '/')) . intval(microtime(true) * 1000);
                             file_put_contents($this->filePath . "/$fileName.log", $body);
                         } else {
-                            fwrite(STDOUT, $body . PHP_EOL);
+                            fwrite(STDOUT, ($this->convert ? mb_convert_encoding($body, ...$this->convert) : $body) . PHP_EOL);
                         }
                     }
                 }
