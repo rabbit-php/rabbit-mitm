@@ -6,14 +6,13 @@ namespace Rabbit\Mitm;
 
 use Rabbit\Base\App;
 use Swoole\Coroutine\Socket;
-use Swow\Buffer;
 use Throwable;
 
 class Agent
 {
     public static function getResponse($client, Socket $socket): ?\http\Message
     {
-        $headerStr = new Buffer(0);
+        $headerStr = '';
         $status = '';
         $isChunked = false;
         $contentLength = 0;
@@ -26,12 +25,12 @@ class Agent
                 } elseif ($data === false || $data === '') {
                     return null;
                 }
-                $headerStr->write($data);
+                $headerStr .= $data;
             }
-            $headerStr->write("\r\n");
-            $socket->send($headerStr->toString());
+            $headerStr .= "\r\n";
+            $socket->send($headerStr);
 
-            $headers = preg_split("#\r\n#i", $headerStr->toString(), -1, PREG_SPLIT_NO_EMPTY);
+            $headers = preg_split("#\r\n#i", $headerStr, -1, PREG_SPLIT_NO_EMPTY);
             foreach ($headers as $header) {
                 if (preg_match("#^HTTP/#", $header)) {
                     if (preg_match("#^HTTP/[^\s]*\s(.*?)\s#", $header, $status)) {
@@ -45,48 +44,47 @@ class Agent
             }
 
             if (substr($status, 0, 2) === "20") {
-                $send = new Buffer(0);
+                $send = '';
                 if ($isChunked) {
                     while (!feof($client)) {
                         $data = fgets($client);
                         if (!$data) {
                             break;
                         }
-                        $send->write($data);
+                        $send .= $data;
                         if ($data === "\r\n") {
                             break;
                         }
                     }
                     stream_set_blocking($client, false);
                     while (strlen((string) ($tmp = fread($client, 2048))) > 0) {
-                        $send->write($tmp);
+                        $send .= $tmp;
                         $socket->send($tmp);
                     }
                     stream_set_blocking($client, true);
-                    $send->rewind();
-                    while (!$send->eof()) {
-                        if (false !== $len = $socket->sendAll($send->toString())) {
-                            $send->seek($len);
+                    while (!strlen($send)) {
+                        if (false !== $len = $socket->sendAll($send)) {
+                            $send = substr($send, 0, $len);
                         }
                     }
                 } elseif ($contentLength > 0) {
                     //读取请求返回的主体信息
                     while (!feof($client)) {
-                        $send->write(fread($client, $contentLength));
+                        $send .= fread($client, $contentLength);
                         //当读取完请求的主体信息后跳出循环，不这样做，貌似会被阻塞！！！
-                        if ($send->getLength() >= $contentLength) {
+                        if (strlen($send) >= $contentLength) {
                             break;
                         }
                     }
                     stream_set_blocking($client, false);
                     while (strlen((string) ($tmp = fread($client, 2048))) > 0) {
-                        $send->write($tmp);
+                        $send .= $tmp;
                         $socket->send($tmp);
                     }
                     stream_set_blocking($client, true);
-                    $socket->sendAll($send->toString());
+                    $socket->sendAll($send);
                 }
-                return (new \http\Message($headerStr->write($send->toString())->toString()));
+                return (new \http\Message($headerStr .= $send));
             }
             return null;
         } catch (Throwable $e) {

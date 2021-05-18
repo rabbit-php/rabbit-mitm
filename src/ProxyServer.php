@@ -132,7 +132,7 @@ class ProxyServer extends CoServer
                             $fileName = str_replace('/', '-', ltrim(parse_url($request->getRequestUrl(), PHP_URL_PATH), '/')) . intval(microtime(true) * 1000);
                             file_put_contents($this->filePath . "/$fileName.log", $body);
                         } else {
-                            fwrite(STDOUT, $body);
+                            fwrite(STDOUT, $body . PHP_EOL);
                         }
                     }
                 }
