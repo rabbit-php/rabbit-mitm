@@ -7,7 +7,8 @@ namespace Rabbit\Mitm;
 use Rabbit\Base\App;
 use Rabbit\Base\Helper\FileHelper;
 use Rabbit\Server\CoServer;
-use Swoole\Coroutine\Server;
+use Swoole\Coroutine\Http\Server;
+use Swoole\Coroutine\Server as CoroutineServer;
 use Swoole\Coroutine\Server\Connection;
 use Throwable;
 
@@ -28,9 +29,9 @@ class ProxyServer extends CoServer
         $this->pCert = file_get_contents($pCertPath ?? App::getAlias('@root/server_cert.pem'));
     }
 
-    protected function createServer()
+    protected function createServer(): CoroutineServer|Server
     {
-        return new Server($this->host, $this->port, $this->ssl, true);
+        return new CoroutineServer($this->host, $this->port, $this->ssl, true);
     }
 
     protected function startServer($server = null): void
