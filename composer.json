@@ -3,8 +3,7 @@
   "description": "rabbit mitm",
   "type": "library",
   "require": {
-    "php": ">=8.0.0",
-    "ext-swoole": ">=4.5.0",
+    "php": ">=8.1.0",
     "rabbit/base": "dev-master",
     "rabbit/server": "dev-master"
   },
