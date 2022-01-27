@@ -40,7 +40,7 @@ class ProxyServer extends CoServer
         FileHelper::createDirectory($this->filePath, 777);
         parent::startServer($server);
 
-        $server->handle(function (Connection $conn) {
+        $server->handle(function (Connection $conn): void {
             $socket = $conn->exportSocket();
             $status = 1;
             $ssl = false;
