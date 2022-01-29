@@ -125,7 +125,7 @@ class ProxyServer extends CoServer
                     $response = Agent::getResponse($remote, $socket);
                     if (array_key_exists($host, $this->handlers) && $response !== null) {
                         rgo(fn () => $this->handlers[$host]($request, $response));
-                    } elseif (getDI('debug') && $response && !empty($body = $response->getBody()->toString())) {
+                    } elseif (config('debug') && $response && !empty($body = $response->getBody()->toString())) {
                         if ($this->savePath) {
                             FileHelper::createDirectory($this->savePath, 777);
                             $fileName = str_replace('/', '-', ltrim(parse_url($request->getRequestUrl(), PHP_URL_PATH), '/')) . intval(microtime(true) * 1000);
