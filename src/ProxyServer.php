@@ -34,7 +34,7 @@ class ProxyServer extends CoServer
         return new CoroutineServer($this->host, $this->port, $this->ssl, true);
     }
 
-    protected function startServer($server = null): void
+    protected function startServer(CoroutineServer|Server $server = null): void
     {
         $this->filePath = $this->filePath ?? sys_get_temp_dir() . '/mitmrabbit';
         FileHelper::createDirectory($this->filePath, 777);
